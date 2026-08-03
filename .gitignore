@@ -1,0 +1,47 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Visual Studio Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+
+# Test results and code coverage
+[Tt]est[Rr]esult*/
+coverage/
+coverage*.json
+coverage*.xml
+*.coverage
+*.coveragexml
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# .NET tooling
+project.lock.json
+project.fragment.lock.json
+.dotnet/
+
+# Operating-system files
+.DS_Store
+Thumbs.db

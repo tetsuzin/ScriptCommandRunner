@@ -1,0 +1,32 @@
+# Normalize text files and keep repository line endings consistent.
+* text=auto
+
+.editorconfig text eol=lf
+.gitattributes text eol=lf
+.gitignore     text eol=lf
+
+*.cs        text eol=lf diff=csharp
+*.csx       text eol=lf diff=csharp
+*.csproj    text eol=lf
+*.props     text eol=lf
+*.targets   text eol=lf
+*.sln       text eol=lf
+*.slnx      text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.sh        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+
+# Common binary formats.
+*.dll       binary
+*.exe       binary
+*.ico       binary
+*.jpg       binary
+*.jpeg      binary
+*.png       binary
+*.pdb       binary
+*.zip       binary
