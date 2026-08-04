@@ -9,8 +9,8 @@ Usage: $(basename "$0") [options] [-- <dotnet publish options>]
 
 Options:
   -r, --runtime <RID>       Target runtime (default: linux-x64)
-  -o, --output <DIRECTORY>  Output directory (default: ${SCRIPT_DIR}/setup)
-      --file-name <NAME>    Executable file name (default: setup)
+  -o, --output <DIRECTORY>  Output directory (default: ${SCRIPT_DIR}/artifacts)
+      --file-name <NAME>    Executable file name (default: ScriptCommandRunner)
   -h, --help                Show this help
 EOF
 }
