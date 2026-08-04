@@ -2,7 +2,6 @@ using ConsoleAppFramework;
 using ScriptCommandRunner.Options;
 using System.Diagnostics;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 var app = ConsoleApp.Create()
     .ConfigureDefaultConfiguration()
@@ -68,7 +67,7 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         var applicationDirectory = AppContext.BaseDirectory;
         var runnerOptions = options;
         var scriptName = $"{command}{runnerOptions.ScriptExtension}";
-        var checkedScriptPaths = new List<string>(runnerOptions.ScriptDirectory.Length);
+        var checkedScriptPaths = new Span<string>(new string[runnerOptions.ScriptDirectory.Length]);
         string? scriptPath = null;
 
         foreach (var scriptDirectory in runnerOptions.ScriptDirectory)
@@ -206,20 +205,4 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
 
         return Path.GetFullPath(configuredDirectory);
     }
-}
-
-internal sealed class AppSettings
-{
-    public const string FileName = "appsettings.json";
-
-    public ScriptCommandRunnerOptions ScriptCommandRunnerOptions { get; set; } = new()
-    {
-        ScriptDirectory = [ScriptCommandRunnerOptions.DefaultScriptDirectory],
-    };
-}
-
-[JsonSourceGenerationOptions(WriteIndented = true, PropertyNameCaseInsensitive = true)]
-[JsonSerializable(typeof(AppSettings))]
-internal sealed partial class AppSettingsJsonSerializerContext : JsonSerializerContext
-{
 }
