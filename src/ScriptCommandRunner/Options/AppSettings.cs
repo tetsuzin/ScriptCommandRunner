@@ -14,6 +14,4 @@ internal sealed class AppSettings
 
 [JsonSourceGenerationOptions(WriteIndented = true, PropertyNameCaseInsensitive = true)]
 [JsonSerializable(typeof(AppSettings))]
-internal sealed partial class AppSettingsJsonSerializerContext : JsonSerializerContext
-{
-}
+internal sealed partial class AppSettingsJsonSerializerContext : JsonSerializerContext;
