@@ -67,14 +67,11 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         var applicationDirectory = AppContext.BaseDirectory;
         var runnerOptions = options;
         var scriptName = $"{command}{runnerOptions.ScriptExtension}";
-        var checkedScriptPaths = new Span<string>(new string[runnerOptions.ScriptDirectory.Length]);
         string? scriptPath = null;
 
         foreach (var scriptDirectory in runnerOptions.ScriptDirectory)
         {
-            var resolvedDirectory = GetScriptDirectory(applicationDirectory, scriptDirectory);
-            var candidatePath = Path.Combine(resolvedDirectory, scriptName);
-            checkedScriptPaths.Add(candidatePath);
+            var candidatePath = GetScriptPath(applicationDirectory, scriptDirectory, scriptName);
 
             if (File.Exists(candidatePath))
             {
@@ -86,8 +83,9 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         if (scriptPath is null)
         {
             Console.Error.WriteLine($"Command not found: {command}");
-            foreach (var checkedScriptPath in checkedScriptPaths)
+            foreach (var scriptDirectory in runnerOptions.ScriptDirectory)
             {
+                var checkedScriptPath = GetScriptPath(applicationDirectory, scriptDirectory, scriptName);
                 Console.Error.WriteLine($"  {checkedScriptPath}");
             }
 
@@ -195,6 +193,15 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
             null or "" or "." or ".." => false,
             _ => !command.Contains('/') && !command.Contains('\\')
         };
+    }
+
+    private static string GetScriptPath(
+        string applicationDirectory,
+        string scriptDirectory,
+        string scriptName)
+    {
+        var resolvedDirectory = GetScriptDirectory(applicationDirectory, scriptDirectory);
+        return Path.Combine(resolvedDirectory, scriptName);
     }
 
     private static string GetScriptDirectory(string applicationDirectory, string scriptDirectory)
