@@ -129,11 +129,17 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
 
         var applicationDirectory = AppContext.BaseDirectory;
         var scriptName = $"{command}{options.ScriptExtension}";
+        var scriptPaths = GetScriptPaths(applicationDirectory, options.ScriptDirectory, scriptName);
 
-        if (FindScriptPath(applicationDirectory, options.ScriptDirectory, scriptName) is not { } scriptPath)
+        if (Array.Find(scriptPaths, File.Exists) is not { } scriptPath)
         {
             Console.Error.WriteLine($"Command not found: {command}");
-            WriteCheckedScriptPaths(applicationDirectory, options.ScriptDirectory, scriptName);
+
+            foreach (var candidatePath in scriptPaths)
+            {
+                Console.Error.WriteLine($"  {candidatePath}");
+            }
+
             return Task.FromResult((int)ExitCode.Error);
         }
 
@@ -215,33 +221,14 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         }
     }
 
-    private static string? FindScriptPath(
+    private static string[] GetScriptPaths(
         string applicationDirectory,
-        ReadOnlySpan<string> scriptDirectories,
+        string[] scriptDirectories,
         string scriptName)
     {
-        foreach (var scriptDirectory in scriptDirectories)
-        {
-            var candidatePath = GetScriptPath(applicationDirectory, scriptDirectory, scriptName);
-
-            if (File.Exists(candidatePath))
-            {
-                return candidatePath;
-            }
-        }
-
-        return null;
-    }
-
-    private static void WriteCheckedScriptPaths(
-        string applicationDirectory,
-        ReadOnlySpan<string> scriptDirectories,
-        string scriptName)
-    {
-        foreach (var scriptDirectory in scriptDirectories)
-        {
-            Console.Error.WriteLine($"  {GetScriptPath(applicationDirectory, scriptDirectory, scriptName)}");
-        }
+        return Array.ConvertAll(
+            scriptDirectories,
+            scriptDirectory => GetScriptPath(applicationDirectory, scriptDirectory, scriptName));
     }
 
     private static string GetScriptPath(
