@@ -99,8 +99,6 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         var startInfo = new ProcessStartInfo
         {
             FileName = options.Executable,
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
             UseShellExecute = false,
             WorkingDirectory = applicationDirectory,
         };
@@ -134,11 +132,7 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
                 throw new InvalidOperationException("The process could not be started.");
             }
 
-            await Task.WhenAll(
-                process.StandardOutput.BaseStream.CopyToAsync(Console.OpenStandardOutput(), cancellationToken),
-                process.StandardError.BaseStream.CopyToAsync(Console.OpenStandardError(), cancellationToken),
-                process.WaitForExitAsync(cancellationToken)
-            );
+            await process.WaitForExitAsync(cancellationToken);
 
             return process.ExitCode;
         }
