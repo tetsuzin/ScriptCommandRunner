@@ -84,6 +84,12 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
     [Command("")]
     public Task<int> Run([Argument] string command, ConsoleAppContext context, CancellationToken cancellationToken)
     {
+        if (options.Validate() is { } configurationError)
+        {
+            Console.Error.WriteLine(configurationError);
+            return Task.FromResult((int)ExitCode.Error);
+        }
+
         if (!IsValidCommandName(command))
         {
             Console.Error.WriteLine($"Invalid command name: {command}");
