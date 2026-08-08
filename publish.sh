@@ -11,6 +11,7 @@ Options:
   -r, --runtime <RID>       Target runtime (default: linux-x64)
   -o, --output <DIRECTORY>  Output directory (default: ${SCRIPT_DIR}/artifacts)
       --file-name <NAME>    Executable file name (default: ScriptCommandRunner)
+      --clean               Remove existing files in the output directory before copying
   -h, --help                Show this help
 EOF
 }
@@ -24,6 +25,7 @@ function fail() {
 runtime="linux-x64"
 output="${SCRIPT_DIR}/artifacts"
 file_name="ScriptCommandRunner"
+clean=false
 dotnet_arguments=()
 
 while [[ $# -gt 0 ]]; do
@@ -53,6 +55,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --file-name=*)
       file_name="${1#*=}"
+      shift
+      ;;
+    --clean)
+      clean=true
       shift
       ;;
     -h|--help)
@@ -98,6 +104,13 @@ dotnet publish \
   -p:AssemblyName="${file_name}" \
   -p:DebugSymbols=false \
   "${dotnet_arguments[@]}"
+
+# PublishAot emits a separate native symbol file that DebugSymbols=false does not suppress.
+rm -f -- "${publish_directory}/${file_name}.dbg"
+
+if [[ "${clean}" == true ]]; then
+  find "${output}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+fi
 
 cp -R "${publish_directory}/." "${output}/"
 printf 'Published: %s\n' "${output}"
