@@ -105,8 +105,12 @@ dotnet publish \
   -p:DebugSymbols=false \
   ${dotnet_arguments[@]+"${dotnet_arguments[@]}"}
 
-# PublishAot emits a separate native symbol file that DebugSymbols=false does not suppress.
-rm -f -- "${publish_directory}/${file_name}.dbg"
+# PublishAot emits separate native symbols (.dbg on Linux, .pdb on Windows,
+# .dSYM on macOS) that DebugSymbols=false does not suppress.
+rm -rf -- \
+  "${publish_directory}/${file_name}.dbg" \
+  "${publish_directory}/${file_name}.pdb" \
+  "${publish_directory}/${file_name}.dSYM"
 
 if [[ "${clean}" == true ]]; then
   find "${output}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +

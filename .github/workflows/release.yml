@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - rid: linux-x64
+            os: ubuntu-latest
+          - rid: linux-arm64
+            os: ubuntu-24.04-arm
+          - rid: win-x64
+            os: windows-latest
+          - rid: osx-x64
+            os: macos-15-intel
+          - rid: osx-arm64
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Determine version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "${GITHUB_ENV}"
+            echo "LABEL=${GITHUB_REF_NAME}" >> "${GITHUB_ENV}"
+          else
+            echo "VERSION=0.0.0-ci" >> "${GITHUB_ENV}"
+            echo "LABEL=ci-${GITHUB_SHA::7}" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Publish
+        run: ./publish.sh --runtime "${{ matrix.rid }}" --output publish-output --clean -- -p:Version="${VERSION}"
+
+      - name: Package
+        run: |
+          archive="ScriptCommandRunner-${LABEL}-${{ matrix.rid }}"
+          ls -la publish-output
+          case "${{ matrix.rid }}" in
+            win-*)
+              (cd publish-output && 7z a "../${archive}.zip" ScriptCommandRunner.exe)
+              ;;
+            *)
+              tar -czf "${archive}.tar.gz" -C publish-output ScriptCommandRunner
+              ;;
+          esac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ScriptCommandRunner-${{ matrix.rid }}
+          path: ScriptCommandRunner-*-${{ matrix.rid }}.*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create checksums
+        run: cd dist && sha256sum * > SHA256SUMS.txt
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "${GITHUB_REF_NAME}" dist/* --title "${GITHUB_REF_NAME}" --generate-notes --verify-tag
