@@ -49,36 +49,61 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
     public async Task<int> Init(bool force = false, CancellationToken cancellationToken = default)
     {
         var appSettingsPath = Path.Combine(AppContext.BaseDirectory, AppSettings.FileName);
-        var appSettings = new AppSettings();
+
+        if (!force && File.Exists(appSettingsPath))
+        {
+            Console.Error.WriteLine($"File already exists: {appSettingsPath}");
+            Console.Error.WriteLine("Use --force to overwrite it.");
+            return (int)ExitCode.Error;
+        }
+
+        var temporaryPath = $"{appSettingsPath}.tmp";
 
         try
         {
-            var options = new FileStreamOptions
+            var fileStreamOptions = new FileStreamOptions
             {
-                Mode = force ? FileMode.Create : FileMode.CreateNew,
+                Mode = FileMode.Create,
                 Access = FileAccess.Write,
                 Share = FileShare.None,
                 Options = FileOptions.Asynchronous,
             };
-            await using var stream = new FileStream(appSettingsPath, options);
-            var context = AppSettingsJsonSerializerContext.Default.AppSettings;
-            await JsonSerializer.SerializeAsync(stream, appSettings, context, cancellationToken);
-            await stream.FlushAsync(cancellationToken);
+            await using (var stream = new FileStream(temporaryPath, fileStreamOptions))
+            {
+                var context = AppSettingsJsonSerializerContext.Default.AppSettings;
+                await JsonSerializer.SerializeAsync(stream, new AppSettings(), context, cancellationToken);
+            }
+
+            File.Move(temporaryPath, appSettingsPath, overwrite: force);
         }
         catch (IOException) when (!force && File.Exists(appSettingsPath))
         {
+            TryDelete(temporaryPath);
             Console.Error.WriteLine($"File already exists: {appSettingsPath}");
             Console.Error.WriteLine("Use --force to overwrite it.");
             return (int)ExitCode.Error;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
+            TryDelete(temporaryPath);
             Console.Error.WriteLine($"Failed to create {appSettingsPath}: {exception.Message}");
             return (int)ExitCode.Error;
         }
 
         Console.WriteLine($"Created: {appSettingsPath}");
         return (int)ExitCode.Success;
+
+        static void TryDelete(string path)
+        {
+            try
+            {
+                File.Delete(path);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Leave the temporary file behind if it cannot be deleted.
+            }
+        }
     }
 
     [Command("")]
