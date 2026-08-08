@@ -2,14 +2,35 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using ConsoleAppFramework;
+using Microsoft.Extensions.Configuration;
 using ScriptCommandRunner.Options;
 
-var app = ConsoleApp.Create()
-    .ConfigureDefaultConfiguration()
-    .ConfigureServices();
+try
+{
+    var app = ConsoleApp.Create()
+        .ConfigureEmptyConfiguration(configuration =>
+        {
+            configuration.SetBasePath(AppContext.BaseDirectory);
 
-app.Add<ScriptCommands>();
-await app.RunAsync(NormalizeArguments(args));
+            // Skip loading the file for init so a corrupted appsettings.json
+            // can still be regenerated with init --force.
+            if (args is not ["init", ..])
+            {
+                configuration.AddJsonFile(AppSettings.FileName, optional: true);
+            }
+        })
+        .ConfigureServices();
+
+    app.Add<ScriptCommands>();
+    await app.RunAsync(NormalizeArguments(args));
+}
+catch (Exception exception) when (exception is FormatException or InvalidDataException or InvalidOperationException)
+{
+    Console.Error.WriteLine(exception.InnerException is { } innerException
+        ? $"{exception.Message} {innerException.Message}"
+        : exception.Message);
+    Environment.ExitCode = (int)ExitCode.Error;
+}
 
 static string[] NormalizeArguments(string[] arguments)
 {
@@ -27,7 +48,7 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
     [Command("init")]
     public async Task<int> Init(bool force = false, CancellationToken cancellationToken = default)
     {
-        var appSettingsPath = Path.GetFullPath(AppSettings.FileName);
+        var appSettingsPath = Path.Combine(AppContext.BaseDirectory, AppSettings.FileName);
         var appSettings = new AppSettings();
 
         try
