@@ -1,7 +1,8 @@
-using ConsoleAppFramework;
-using ScriptCommandRunner.Options;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
+using ConsoleAppFramework;
+using ScriptCommandRunner.Options;
 
 var app = ConsoleApp.Create()
     .ConfigureDefaultConfiguration()
@@ -14,6 +15,7 @@ static string[] NormalizeArguments(string[] arguments)
 {
     return arguments switch
     {
+        ["init", ..] => arguments,
         [_, "--", ..] => arguments,
         [var command, var subCommand, .. var remaining] => [command, "--", subCommand, .. remaining],
         _ => arguments,
@@ -46,23 +48,28 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         {
             Console.Error.WriteLine($"File already exists: {appSettingsPath}");
             Console.Error.WriteLine("Use --force to overwrite it.");
-            return 1;
+            return (int)ExitCode.Error;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"Failed to create {appSettingsPath}: {exception.Message}");
+            return (int)ExitCode.Error;
         }
 
         Console.WriteLine($"Created: {appSettingsPath}");
-        return 0;
+        return (int)ExitCode.Success;
     }
 
     [Command("")]
     public Task<int> Run([Argument] string command, ConsoleAppContext context, CancellationToken cancellationToken)
     {
-        if (!isValidCommandName(command))
+        if (!IsValidCommandName(command))
         {
             Console.Error.WriteLine($"Invalid command name: {command}");
-            return Task.FromResult(1);
+            return Task.FromResult((int)ExitCode.Error);
         }
 
-        static bool isValidCommandName(string command) => command switch
+        static bool IsValidCommandName(string command) => command switch
         {
             null or "" or "." or ".." => false,
             _ => !command.Contains('/') && !command.Contains('\\')
@@ -71,12 +78,24 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         var applicationDirectory = AppContext.BaseDirectory;
         var scriptName = $"{command}{options.ScriptExtension}";
 
-        if (FetchScriptPath(applicationDirectory, options.ScriptDirectory, scriptName) is not { } scriptPath)
+        if (FindScriptPath(applicationDirectory, options.ScriptDirectory, scriptName) is not { } scriptPath)
         {
             Console.Error.WriteLine($"Command not found: {command}");
-            return Task.FromResult(1);
+            WriteCheckedScriptPaths(applicationDirectory, options.ScriptDirectory, scriptName);
+            return Task.FromResult((int)ExitCode.Error);
         }
 
+        var startInfo = CreateStartInfo(applicationDirectory, options, scriptPath, context.EscapedArguments);
+
+        return RunProcessAsync(startInfo, scriptPath, cancellationToken);
+    }
+
+    private static ProcessStartInfo CreateStartInfo(
+        string applicationDirectory,
+        ScriptCommandRunnerOptions options,
+        string scriptPath,
+        ReadOnlySpan<string> arguments)
+    {
         var startInfo = new ProcessStartInfo
         {
             FileName = options.Executable,
@@ -86,14 +105,25 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
             WorkingDirectory = applicationDirectory,
         };
 
-        foreach (var argument in options.ExecutableArguments) startInfo.ArgumentList.Add(argument);
-        startInfo.ArgumentList.Add(scriptPath);
-        foreach (var argument in context.EscapedArguments) startInfo.ArgumentList.Add(argument);
+        foreach (var argument in options.ExecutableArguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
 
-        return RunProcessAsync(startInfo, scriptPath, cancellationToken);
+        startInfo.ArgumentList.Add(scriptPath);
+
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+
+        return startInfo;
     }
 
-    private static async Task<int> RunProcessAsync(ProcessStartInfo startInfo, string scriptPath, CancellationToken cancellationToken)
+    private static async Task<int> RunProcessAsync(
+        ProcessStartInfo startInfo,
+        string scriptPath,
+        CancellationToken cancellationToken)
     {
         using var process = new Process { StartInfo = startInfo };
 
@@ -114,53 +144,70 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            tryKill(process);
+            TryKill(process);
             throw;
         }
-        catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
         {
             Console.Error.WriteLine($"Failed to start {scriptPath}: {exception.Message}");
-            return 1;
+            return (int)ExitCode.Error;
         }
 
-        static void tryKill(Process process)
+        static void TryKill(Process process)
         {
             try
             {
-                if (!process.HasExited) process.Kill(entireProcessTree: true);
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
             }
-            catch (Exception exception) when (exception is System.ComponentModel.Win32Exception or InvalidOperationException)
+            catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
             {
                 // The process has already exited or cannot be terminated.
             }
         }
     }
 
-    private static string FetchScriptPath(string applicationDirectory, string[] scriptDirectory, string scriptName)
+    private static string? FindScriptPath(
+        string applicationDirectory,
+        ReadOnlySpan<string> scriptDirectories,
+        string scriptName)
     {
-        foreach (var dir in scriptDirectory)
+        foreach (var scriptDirectory in scriptDirectories)
         {
-            var candidatePath = getScriptPath(applicationDirectory, dir, scriptName);
+            var candidatePath = GetScriptPath(applicationDirectory, scriptDirectory, scriptName);
 
             if (File.Exists(candidatePath))
+            {
                 return candidatePath;
+            }
         }
 
-        throw new FileNotFoundException($"Script not found: {scriptName}");
+        return null;
+    }
 
-        static string getScriptPath(string applicationDirectory, string scriptDirectory, string scriptName)
+    private static void WriteCheckedScriptPaths(
+        string applicationDirectory,
+        ReadOnlySpan<string> scriptDirectories,
+        string scriptName)
+    {
+        foreach (var scriptDirectory in scriptDirectories)
         {
-            var resolvedDirectory = getScriptDirectory(applicationDirectory, scriptDirectory);
-            return Path.Combine(resolvedDirectory, scriptName);
+            Console.Error.WriteLine($"  {GetScriptPath(applicationDirectory, scriptDirectory, scriptName)}");
         }
+    }
 
-        static string getScriptDirectory(string applicationDirectory, string scriptDirectory)
-        {
-            var configuredDirectory = Path.IsPathRooted(scriptDirectory)
-                ? scriptDirectory
-                : Path.Combine(applicationDirectory, scriptDirectory);
+    private static string GetScriptPath(
+        string applicationDirectory,
+        string scriptDirectory,
+        string scriptName)
+    {
+        var configuredDirectory = Path.IsPathRooted(scriptDirectory)
+            ? scriptDirectory
+            : Path.Combine(applicationDirectory, scriptDirectory);
+        var resolvedDirectory = Path.GetFullPath(configuredDirectory);
 
-            return Path.GetFullPath(configuredDirectory);
-        }
+        return Path.Combine(resolvedDirectory, scriptName);
     }
 }
