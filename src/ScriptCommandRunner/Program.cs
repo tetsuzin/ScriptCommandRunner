@@ -12,9 +12,9 @@ try
         {
             configuration.SetBasePath(AppContext.BaseDirectory);
 
-            // Skip loading the file for init so a corrupted appsettings.json
-            // can still be regenerated with init --force.
-            if (args is not ["init", ..])
+            // Skip loading the file for --init so a corrupted appsettings.json
+            // can still be regenerated with --init --force.
+            if (args is not ["--init", ..])
             {
                 configuration.AddJsonFile(AppSettings.FileName, optional: true);
             }
@@ -36,7 +36,7 @@ static string[] NormalizeArguments(string[] arguments)
 {
     return arguments switch
     {
-        ["init", ..] => arguments,
+        ["--init", ..] => arguments,
         [_, "--", ..] => arguments,
         [var command, var subCommand, .. var remaining] => [command, "--", subCommand, .. remaining],
         _ => arguments,
@@ -45,7 +45,7 @@ static string[] NormalizeArguments(string[] arguments)
 
 internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
 {
-    [Command("init")]
+    [Command("--init")]
     public async Task<int> Init(bool force = false, CancellationToken cancellationToken = default)
     {
         var appSettingsPath = Path.Combine(AppContext.BaseDirectory, AppSettings.FileName);
