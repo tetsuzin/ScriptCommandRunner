@@ -103,7 +103,7 @@ dotnet publish \
   --output "${publish_directory}" \
   -p:AssemblyName="${file_name}" \
   -p:DebugSymbols=false \
-  "${dotnet_arguments[@]}"
+  ${dotnet_arguments[@]+"${dotnet_arguments[@]}"}
 
 # PublishAot emits a separate native symbol file that DebugSymbols=false does not suppress.
 rm -f -- "${publish_directory}/${file_name}.dbg"
