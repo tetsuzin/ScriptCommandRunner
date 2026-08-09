@@ -80,19 +80,9 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
 
         try
         {
-            var fileStreamOptions = new FileStreamOptions
-            {
-                Mode = FileMode.Create,
-                Access = FileAccess.Write,
-                Share = FileShare.None,
-                Options = FileOptions.Asynchronous,
-            };
-            await using (var stream = new FileStream(temporaryPath, fileStreamOptions))
-            {
-                var context = AppSettingsJsonSerializerContext.Default.AppSettings;
-                await JsonSerializer.SerializeAsync(stream, new AppSettings(), context, cancellationToken);
-            }
-
+            var context = AppSettingsJsonSerializerContext.Default.AppSettings;
+            var json = JsonSerializer.Serialize(new AppSettings(), context);
+            await File.WriteAllTextAsync(temporaryPath, json, cancellationToken);
             File.Move(temporaryPath, appSettingsPath, overwrite: force);
         }
         catch (IOException) when (!force && File.Exists(appSettingsPath))
