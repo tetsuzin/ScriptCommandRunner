@@ -129,11 +129,8 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
             return Task.FromResult(1);
         }
 
-        static bool IsValidCommandName(string command) => command switch
-        {
-            null or "" or "." or ".." => false,
-            _ => !command.Contains('/') && !command.Contains('\\')
-        };
+        static bool IsValidCommandName(string command) =>
+            command is not ("" or "." or "..") && Path.GetFileName(command) == command;
 
         var applicationDirectory = AppContext.BaseDirectory;
         var scriptName = $"{command}{options.ScriptExtension}";
