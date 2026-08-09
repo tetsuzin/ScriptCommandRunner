@@ -6,10 +6,7 @@ internal sealed class AppSettings
 {
     public const string FileName = "appsettings.json";
 
-    public ScriptCommandRunnerOptions ScriptCommandRunnerOptions { get; set; } = new()
-    {
-        ScriptDirectory = [ScriptCommandRunnerOptions.DefaultScriptDirectory],
-    };
+    public ScriptCommandRunnerOptions ScriptCommandRunnerOptions { get; set; } = new();
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true, PropertyNameCaseInsensitive = true)]

@@ -2,34 +2,54 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using ConsoleAppFramework;
-using Microsoft.Extensions.Configuration;
 using ScriptCommandRunner.Options;
 
 try
 {
-    var app = ConsoleApp.Create()
-        .ConfigureEmptyConfiguration(configuration =>
-        {
-            configuration.SetBasePath(AppContext.BaseDirectory);
+    // Skip loading the file for --init so a corrupted appsettings.json
+    // can still be regenerated with --init --force.
+    var options = args is ["--init", ..]
+        ? new ScriptCommandRunnerOptions()
+        : LoadOptions();
+    var commands = new ScriptCommands(options);
 
-            // Skip loading the file for --init so a corrupted appsettings.json
-            // can still be regenerated with --init --force.
-            if (args is not ["--init", ..])
-            {
-                configuration.AddJsonFile(AppSettings.FileName, optional: true);
-            }
-        })
-        .ConfigureServices();
-
-    app.Add<ScriptCommands>();
+    var app = ConsoleApp.Create();
+    app.Add("--init", commands.Init);
+    app.Add("", commands.Run);
     await app.RunAsync(NormalizeArguments(args));
 }
-catch (Exception exception) when (exception is FormatException or InvalidDataException or InvalidOperationException)
+catch (Exception exception) when (exception is JsonException or IOException)
 {
-    Console.Error.WriteLine(exception.InnerException is { } innerException
-        ? $"{exception.Message} {innerException.Message}"
-        : exception.Message);
+    Console.Error.WriteLine($"Failed to load {AppSettings.FileName}: {exception.Message}");
     Environment.ExitCode = (int)ExitCode.Error;
+}
+
+static ScriptCommandRunnerOptions LoadOptions()
+{
+    var appSettingsPath = Path.Combine(AppContext.BaseDirectory, AppSettings.FileName);
+
+    if (!File.Exists(appSettingsPath))
+    {
+        return new ScriptCommandRunnerOptions();
+    }
+
+    using var stream = File.OpenRead(appSettingsPath);
+    var context = AppSettingsJsonSerializerContext.Default.AppSettings;
+    var appSettings = JsonSerializer.Deserialize(stream, context) ?? new AppSettings();
+    var options = appSettings.ScriptCommandRunnerOptions ?? new ScriptCommandRunnerOptions();
+
+    // Explicit JSON nulls can overwrite the property defaults.
+    if (options.ScriptDirectory is null or [])
+    {
+        options.ScriptDirectory = [ScriptCommandRunnerOptions.DefaultScriptDirectory];
+    }
+
+    if (options.ExecutableArguments is null)
+    {
+        options.ExecutableArguments = [];
+    }
+
+    return options;
 }
 
 static string[] NormalizeArguments(string[] arguments)
@@ -45,7 +65,6 @@ static string[] NormalizeArguments(string[] arguments)
 
 internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
 {
-    [Command("--init")]
     public async Task<int> Init(bool force = false, CancellationToken cancellationToken = default)
     {
         var appSettingsPath = Path.Combine(AppContext.BaseDirectory, AppSettings.FileName);
@@ -106,7 +125,6 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         }
     }
 
-    [Command("")]
     public Task<int> Run([Argument] string command, ConsoleAppContext context, CancellationToken cancellationToken)
     {
         if (options.Validate() is { } configurationError)

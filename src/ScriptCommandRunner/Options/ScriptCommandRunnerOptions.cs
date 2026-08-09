@@ -1,7 +1,3 @@
-using ConsoleAppFramework;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace ScriptCommandRunner.Options;
 
 internal sealed class ScriptCommandRunnerOptions
@@ -10,9 +6,7 @@ internal sealed class ScriptCommandRunnerOptions
     public const string DefaultExecutable = "bash";
     public const string DefaultScriptExtension = ".sh";
 
-    // The configuration binder appends to arrays instead of replacing them,
-    // so the default is applied after binding rather than in this initializer.
-    public string[] ScriptDirectory { get; set; } = [];
+    public string[] ScriptDirectory { get; set; } = [DefaultScriptDirectory];
 
     public string Executable { get; set; } = DefaultExecutable;
 
@@ -43,31 +37,5 @@ internal sealed class ScriptCommandRunnerOptions
         }
 
         return null;
-    }
-}
-
-internal static class ScriptCommandRunnerOptionsExtensions
-{
-    internal static ConsoleApp.ConsoleAppBuilder ConfigureServices(
-        this ConsoleApp.ConsoleAppBuilder builder)
-    {
-        return builder.ConfigureServices(ConfigureScriptCommandRunnerServices);
-    }
-
-    private static void ConfigureScriptCommandRunnerServices(
-        IConfiguration configuration,
-        IServiceCollection services)
-    {
-        var options = new ScriptCommandRunnerOptions();
-        configuration
-            .GetSection(nameof(ScriptCommandRunnerOptions))
-            .Bind(options);
-
-        if (options.ScriptDirectory is [])
-        {
-            options.ScriptDirectory = [ScriptCommandRunnerOptions.DefaultScriptDirectory];
-        }
-
-        services.AddSingleton(options);
     }
 }
