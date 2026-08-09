@@ -56,8 +56,7 @@ static string[] NormalizeArguments(string[] arguments)
 {
     return arguments switch
     {
-        ["--init", ..] => arguments,
-        [_, "--", ..] => arguments,
+        ["--init", ..] or [_, "--", ..] => arguments,
         [var command, var subCommand, .. var remaining] => [command, "--", subCommand, .. remaining],
         _ => arguments,
     };
