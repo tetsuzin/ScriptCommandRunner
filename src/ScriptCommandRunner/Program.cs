@@ -234,21 +234,13 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         string[] scriptDirectories,
         string scriptName)
     {
-        return Array.ConvertAll(
-            scriptDirectories,
-            scriptDirectory => GetScriptPath(applicationDirectory, scriptDirectory, scriptName));
-    }
+        return Array.ConvertAll(scriptDirectories, scriptDirectory =>
+        {
+            var configuredDirectory = Path.IsPathRooted(scriptDirectory)
+                ? scriptDirectory
+                : Path.Combine(applicationDirectory, scriptDirectory);
 
-    private static string GetScriptPath(
-        string applicationDirectory,
-        string scriptDirectory,
-        string scriptName)
-    {
-        var configuredDirectory = Path.IsPathRooted(scriptDirectory)
-            ? scriptDirectory
-            : Path.Combine(applicationDirectory, scriptDirectory);
-        var resolvedDirectory = Path.GetFullPath(configuredDirectory);
-
-        return Path.Combine(resolvedDirectory, scriptName);
+            return Path.Combine(Path.GetFullPath(configuredDirectory), scriptName);
+        });
     }
 }
