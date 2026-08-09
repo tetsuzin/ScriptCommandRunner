@@ -21,7 +21,7 @@ try
 catch (Exception exception) when (exception is JsonException or IOException)
 {
     Console.Error.WriteLine($"Failed to load {AppSettings.FileName}: {exception.Message}");
-    Environment.ExitCode = (int)ExitCode.Error;
+    Environment.ExitCode = 1;
 }
 
 static ScriptCommandRunnerOptions LoadOptions()
@@ -73,7 +73,7 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         {
             Console.Error.WriteLine($"File already exists: {appSettingsPath}");
             Console.Error.WriteLine("Use --force to overwrite it.");
-            return (int)ExitCode.Error;
+            return 1;
         }
 
         var temporaryPath = $"{appSettingsPath}.tmp";
@@ -90,17 +90,17 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
             TryDelete(temporaryPath);
             Console.Error.WriteLine($"File already exists: {appSettingsPath}");
             Console.Error.WriteLine("Use --force to overwrite it.");
-            return (int)ExitCode.Error;
+            return 1;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             TryDelete(temporaryPath);
             Console.Error.WriteLine($"Failed to create {appSettingsPath}: {exception.Message}");
-            return (int)ExitCode.Error;
+            return 1;
         }
 
         Console.WriteLine($"Created: {appSettingsPath}");
-        return (int)ExitCode.Success;
+        return 0;
 
         static void TryDelete(string path)
         {
@@ -120,13 +120,13 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         if (options.Validate() is { } configurationError)
         {
             Console.Error.WriteLine(configurationError);
-            return Task.FromResult((int)ExitCode.Error);
+            return Task.FromResult(1);
         }
 
         if (!IsValidCommandName(command))
         {
             Console.Error.WriteLine($"Invalid command name: {command}");
-            return Task.FromResult((int)ExitCode.Error);
+            return Task.FromResult(1);
         }
 
         static bool IsValidCommandName(string command) => command switch
@@ -148,7 +148,7 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
                 Console.Error.WriteLine($"  {candidatePath}");
             }
 
-            return Task.FromResult((int)ExitCode.Error);
+            return Task.FromResult(1);
         }
 
         var startInfo = CreateStartInfo(applicationDirectory, options, scriptPath, context.EscapedArguments);
@@ -210,7 +210,7 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         catch (Exception exception) when (exception is Win32Exception or InvalidOperationException)
         {
             Console.Error.WriteLine($"Failed to start {scriptPath}: {exception.Message}");
-            return (int)ExitCode.Error;
+            return 1;
         }
 
         static void TryKill(Process process)
