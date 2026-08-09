@@ -6,7 +6,7 @@ internal sealed class ScriptCommandRunnerOptions
     public const string DefaultExecutable = "bash";
     public const string DefaultScriptExtension = ".sh";
 
-    public string[] ScriptDirectory { get; set; } = [DefaultScriptDirectory];
+    public string ScriptDirectory { get; set; } = DefaultScriptDirectory;
 
     public string Executable { get; set; } = DefaultExecutable;
 
@@ -21,9 +21,9 @@ internal sealed class ScriptCommandRunnerOptions
             return $"{nameof(ScriptCommandRunnerOptions)}:{nameof(Executable)} must not be empty.";
         }
 
-        if (ScriptDirectory.Any(string.IsNullOrWhiteSpace))
+        if (string.IsNullOrWhiteSpace(ScriptDirectory))
         {
-            return $"{nameof(ScriptCommandRunnerOptions)}:{nameof(ScriptDirectory)} must not contain empty values.";
+            return $"{nameof(ScriptCommandRunnerOptions)}:{nameof(ScriptDirectory)} must not be empty.";
         }
 
         if (ExecutableArguments.Any(argument => argument is null))

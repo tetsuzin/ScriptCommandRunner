@@ -39,9 +39,9 @@ static ScriptCommandRunnerOptions LoadOptions()
     var options = appSettings.ScriptCommandRunnerOptions ?? new ScriptCommandRunnerOptions();
 
     // Explicit JSON nulls can overwrite the property defaults.
-    if (options.ScriptDirectory is null or [])
+    if (options.ScriptDirectory is null)
     {
-        options.ScriptDirectory = [ScriptCommandRunnerOptions.DefaultScriptDirectory];
+        options.ScriptDirectory = ScriptCommandRunnerOptions.DefaultScriptDirectory;
     }
 
     if (options.ExecutableArguments is null)
@@ -133,17 +133,15 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
 
         var applicationDirectory = AppContext.BaseDirectory;
         var scriptName = $"{command}{options.ScriptExtension}";
-        var scriptPaths = GetScriptPaths(applicationDirectory, options.ScriptDirectory, scriptName);
+        var configuredDirectory = Path.IsPathRooted(options.ScriptDirectory)
+            ? options.ScriptDirectory
+            : Path.Combine(applicationDirectory, options.ScriptDirectory);
+        var scriptPath = Path.Combine(Path.GetFullPath(configuredDirectory), scriptName);
 
-        if (Array.Find(scriptPaths, File.Exists) is not { } scriptPath)
+        if (!File.Exists(scriptPath))
         {
             Console.Error.WriteLine($"Command not found: {command}");
-
-            foreach (var candidatePath in scriptPaths)
-            {
-                Console.Error.WriteLine($"  {candidatePath}");
-            }
-
+            Console.Error.WriteLine($"  {scriptPath}");
             return Task.FromResult(1);
         }
 
@@ -225,18 +223,4 @@ internal sealed class ScriptCommands(ScriptCommandRunnerOptions options)
         }
     }
 
-    private static string[] GetScriptPaths(
-        string applicationDirectory,
-        string[] scriptDirectories,
-        string scriptName)
-    {
-        return Array.ConvertAll(scriptDirectories, scriptDirectory =>
-        {
-            var configuredDirectory = Path.IsPathRooted(scriptDirectory)
-                ? scriptDirectory
-                : Path.Combine(applicationDirectory, scriptDirectory);
-
-            return Path.Combine(Path.GetFullPath(configuredDirectory), scriptName);
-        });
-    }
 }
