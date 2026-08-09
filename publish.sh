@@ -80,13 +80,7 @@ fi
 mkdir -p "${output}"
 output="$(cd "${output}" && pwd -P)"
 publish_directory="$(mktemp -d)"
-
-function cleanup() {
-  [[ -n "${publish_directory:-}" && -d "${publish_directory}" ]] || return
-  rm -rf -- "${publish_directory}"
-}
-
-trap cleanup EXIT
+trap 'rm -rf -- "${publish_directory}"' EXIT
 
 dotnet publish \
   "${SCRIPT_DIR}/src/ScriptCommandRunner/ScriptCommandRunner.csproj" \
