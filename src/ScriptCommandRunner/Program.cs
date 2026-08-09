@@ -38,15 +38,8 @@ static ScriptCommandRunnerOptions LoadOptions()
     var options = appSettings.ScriptCommandRunnerOptions ?? new ScriptCommandRunnerOptions();
 
     // Explicit JSON nulls can overwrite the property defaults.
-    if (options.ScriptDirectory is null)
-    {
-        options.ScriptDirectory = ScriptCommandRunnerOptions.DefaultScriptDirectory;
-    }
-
-    if (options.ExecutableArguments is null)
-    {
-        options.ExecutableArguments = [];
-    }
+    options.ScriptDirectory ??= ScriptCommandRunnerOptions.DefaultScriptDirectory;
+    options.ExecutableArguments ??= [];
 
     return options;
 }
