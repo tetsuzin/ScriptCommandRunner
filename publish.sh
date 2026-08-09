@@ -30,32 +30,24 @@ dotnet_arguments=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
+    --*=*)
+      # Normalize --option=value to --option value and reprocess.
+      set -- "${1%%=*}" "${1#*=}" "${@:2}"
+      ;;
     -r|--runtime)
       [[ $# -ge 2 ]] || fail "$1 requires a value"
       runtime=$2
       shift 2
-      ;;
-    --runtime=*)
-      runtime="${1#*=}"
-      shift
       ;;
     -o|--output)
       [[ $# -ge 2 ]] || fail "$1 requires a value"
       output=$2
       shift 2
       ;;
-    --output=*)
-      output="${1#*=}"
-      shift
-      ;;
     --file-name)
       [[ $# -ge 2 ]] || fail "$1 requires a value"
       file_name=$2
       shift 2
-      ;;
-    --file-name=*)
-      file_name="${1#*=}"
-      shift
       ;;
     --clean)
       clean=true
